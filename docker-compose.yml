@@ -1,0 +1,46 @@
+# MiniErp local infrastructure.
+# Secrets come from .env (git-ignored). Copy .env.example to .env first.
+#
+#   docker compose up -d sqlserver rabbitmq      # Phase 0+ (infrastructure only)
+#   docker compose --profile ci up -d            # Phase 7 (adds Jenkins + SonarQube)
+#
+# Application services (Erp.Api, Ledger, Pricing, Gateway) are added in Phase 6.
+
+name: minierp
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: minierp-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SQL_SA_PASSWORD}
+      MSSQL_PID: Developer
+    ports:
+      - "14333:1433"          # host 14333 so it never clashes with a local SQLEXPRESS
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: minierp-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"           # AMQP
+      - "15672:15672"         # management UI: http://localhost:15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sqldata:

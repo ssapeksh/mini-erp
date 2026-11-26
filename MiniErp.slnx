@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Erp/">
+    <Project Path="src/Erp/Erp.Api/Erp.Api.csproj" />
+    <Project Path="src/Erp/Erp.Core/Erp.Core.csproj" />
+    <Project Path="src/Erp/Erp.Infrastructure/Erp.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Gateway/">
+    <Project Path="src/Gateway/MiniErp.Gateway/MiniErp.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/src/Katas/">
+    <Project Path="src/Katas/CodingKatas/CodingKatas.csproj" />
+  </Folder>
+  <Folder Name="/src/Ledger/">
+    <Project Path="src/Ledger/Ledger.Service/Ledger.Service.csproj" />
+  </Folder>
+  <Folder Name="/src/Pricing/">
+    <Project Path="src/Pricing/Pricing.WcfService/Pricing.WcfService.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/MiniErp.Contracts/MiniErp.Contracts.csproj" />
+  </Folder>
+</Solution>
