@@ -1,0 +1,83 @@
+<div class="page-header">
+  <h1>{{ isEdit ? 'Edit item ' + item()?.code : 'New item' }}</h1>
+  <a class="btn" routerLink="/items">Back to list</a>
+</div>
+
+@if (conflict()) {
+  <div class="alert">
+    Someone else changed this item after you opened it (HTTP 409, optimistic concurrency).
+    <button type="button" class="btn btn-small" (click)="reload()">Reload latest version</button>
+  </div>
+}
+
+<app-card>
+  <!-- [formGroup] connects the form element to the FormGroup in the class -->
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <div class="field">
+      <label for="code">Code</label>
+      <input id="code" formControlName="code" placeholder="ELE-007" (blur)="upperCaseCode()" />
+      @let code = form.controls.code;
+      @if (code.pending) { <small class="muted">Checking availability…</small> }
+      @if (code.touched && code.errors; as e) {
+        @if (e['required']) { <small class="field-error">Code is required.</small> }
+        @if (e['pattern']) { <small class="field-error">Use 3 capital letters, a dash and 3 digits (ELE-007).</small> }
+        @if (e['codeTaken']) { <small class="field-error">This code is already used.</small> }
+      }
+    </div>
+
+    <div class="field">
+      <label for="name">Name</label>
+      <input id="name" #nameInput formControlName="name" />
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        <small class="field-error">Name is required (2-150 characters).</small>
+      }
+    </div>
+
+    <div class="field">
+      <label for="category">Category</label>
+      <select id="category" formControlName="categoryId">
+        <option [ngValue]="0" disabled>Choose…</option>
+        @for (c of categories$ | async; track c.id) { <option [ngValue]="c.id">{{ c.name }}</option> }
+      </select>
+      @if (form.controls.categoryId.touched && form.controls.categoryId.invalid) {
+        <small class="field-error">Choose a category.</small>
+      }
+    </div>
+
+    <div class="field">
+      <label for="unit">Unit</label>
+      <input id="unit" formControlName="unit" />
+    </div>
+
+    <div class="field">
+      <label for="price">Unit price (₹)</label>
+      <input id="price" type="number" step="0.01" formControlName="unitPrice" />
+      @if (form.controls.unitPrice.touched && form.controls.unitPrice.invalid) {
+        <small class="field-error">Price can't be negative.</small>
+      }
+    </div>
+
+    <div class="field">
+      <label for="tax">GST %</label>
+      <input id="tax" type="number" formControlName="taxPercent" />
+      @if (form.controls.taxPercent.errors?.['gstSlab']) {
+        <small class="field-error">Must be a GST slab: 0, 5, 12, 18 or 28.</small>
+      }
+    </div>
+
+    <div class="field">
+      <label for="reorder">Reorder level</label>
+      <input id="reorder" type="number" formControlName="reorderLevel" />
+    </div>
+
+    @if (isEdit) {
+      <label class="check"><input type="checkbox" formControlName="isActive" /> Active</label>
+    }
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+      <a class="btn" routerLink="/items">Cancel</a>
+      <span class="muted small">Form status: {{ form.status }}</span>
+    </div>
+  </form>
+</app-card>
