@@ -1,6 +1,225 @@
-@Erp.Api_HostAddress = http://localhost:5159
+### MiniErp API - try every endpoint from Visual Studio / Rider / VS Code (REST Client extension).
+### 1) run "Login as store1" (and the other logins), 2) run any request below.
+### Demo users (password Demo@123): admin, manager1 (L2 approver), approver1 (L1), store1 (store keeper), viewer1
 
-GET {{Erp.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+@base = http://localhost:5101
+@v1 = {{base}}/api/v1
+
+### ---------------------------------------------------------------- auth
+# @name storeLogin
+POST {{v1}}/auth/login
+Content-Type: application/json
+
+{ "userName": "store1", "password": "Demo@123" }
 
 ###
+# @name approverLogin
+POST {{v1}}/auth/login
+Content-Type: application/json
+
+{ "userName": "approver1", "password": "Demo@123" }
+
+###
+# @name managerLogin
+POST {{v1}}/auth/login
+Content-Type: application/json
+
+{ "userName": "manager1", "password": "Demo@123" }
+
+###
+# @name adminLogin
+POST {{v1}}/auth/login
+Content-Type: application/json
+
+{ "userName": "admin", "password": "Demo@123" }
+
+###
+@store = {{storeLogin.response.body.$.data.accessToken}}
+@approver = {{approverLogin.response.body.$.data.accessToken}}
+@manager = {{managerLogin.response.body.$.data.accessToken}}
+@admin = {{adminLogin.response.body.$.data.accessToken}}
+
+### Who am I (permissions from the token)
+GET {{v1}}/auth/me
+Authorization: Bearer {{store}}
+
+### Refresh: rotates the refresh token. Send the SAME one twice -> 401 and the session is revoked
+POST {{v1}}/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "{{storeLogin.response.body.$.data.refreshToken}}" }
+
+### No token -> 401 in the standard ApiResponse shape
+GET {{v1}}/items
+
+### ---------------------------------------------------------------- items
+### Paged + filtered + sorted (stored procedure usp_GetItemsPaged)
+GET {{v1}}/items?search=led&sortBy=Price&sortDir=desc&page=1&pageSize=5
+Authorization: Bearer {{store}}
+
+### One item: note the ETag response header
+# @name item1
+GET {{v1}}/items/1
+Authorization: Bearer {{store}}
+
+### Same ETag in If-None-Match -> 304 Not Modified (no body)
+GET {{v1}}/items/1
+Authorization: Bearer {{store}}
+If-None-Match: {{item1.response.headers.ETag}}
+
+### Stock per warehouse (inline table-valued function)
+GET {{v1}}/items/1/stock
+Authorization: Bearer {{store}}
+
+### Full history (temporal table)
+GET {{v1}}/items/1/history
+Authorization: Bearer {{store}}
+
+### CSV export (streamed with IAsyncEnumerable)
+GET {{v1}}/items/export
+Authorization: Bearer {{store}}
+
+### Async-validator endpoint used by Angular
+GET {{v1}}/items/check-code?code=ELE-001
+Authorization: Bearer {{store}}
+
+### Create -> 201 + Location header
+# @name newItem
+POST {{v1}}/items
+Authorization: Bearer {{store}}
+Content-Type: application/json
+
+{ "code": "ELE-050", "name": "Extension Board 4-way", "categoryId": 1, "unit": "NOS",
+  "unitPrice": 450, "taxPercent": 18, "reorderLevel": 10 }
+
+### Validation errors -> 400 with field errors (FluentValidation)
+POST {{v1}}/items
+Authorization: Bearer {{store}}
+Content-Type: application/json
+
+{ "code": "bad-code", "name": "X", "categoryId": 1, "unit": "nos", "unitPrice": -1, "taxPercent": 7, "reorderLevel": 0 }
+
+### Update with the row version from GET (If-Match). Run twice -> the second gets 409 Conflict
+PUT {{v1}}/items/{{newItem.response.body.$.data.id}}
+Authorization: Bearer {{store}}
+Content-Type: application/json
+If-Match: "{{newItem.response.body.$.data.rowVersion}}"
+
+{ "name": "Extension Board 4-way (surge)", "categoryId": 1, "unit": "NOS", "unitPrice": 499,
+  "taxPercent": 18, "reorderLevel": 10, "isActive": true, "rowVersion": "" }
+
+### Soft delete (manager has Items.Delete) -> 204
+DELETE {{v1}}/items/{{newItem.response.body.$.data.id}}
+Authorization: Bearer {{manager}}
+
+### ---------------------------------------------------------------- orders
+### Create a draft (Idempotency-Key required; repeat with the same key -> same response replayed)
+# @name newOrder
+POST {{v1}}/orders
+Authorization: Bearer {{store}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "customerId": 2, "warehouseId": 1, "remarks": "From .http file",
+  "lines": [ { "itemId": 1, "qty": 20 }, { "itemId": 5, "qty": 2 } ] }
+
+###
+@orderId = {{newOrder.response.body.$.data.id}}
+
+### Submit -> PendingL1
+POST {{v1}}/orders/{{orderId}}/submit
+Authorization: Bearer {{store}}
+
+### Level-1 approval -> PendingL2
+POST {{v1}}/orders/{{orderId}}/approve
+Authorization: Bearer {{approver}}
+Content-Type: application/json
+
+{ "comments": "Rates verified" }
+
+### Level-2 approval by approver1 -> 403 (needs Orders.Approve.L2)
+POST {{v1}}/orders/{{orderId}}/approve
+Authorization: Bearer {{approver}}
+Content-Type: application/json
+
+{ "comments": "try" }
+
+### Level-2 approval by manager1 -> Approved
+POST {{v1}}/orders/{{orderId}}/approve
+Authorization: Bearer {{manager}}
+Content-Type: application/json
+
+{ "comments": "OK" }
+
+### Despatch (usp_DespatchOrder). Run twice -> 409 from THROW 50409
+POST {{v1}}/orders/{{orderId}}/despatch
+Authorization: Bearer {{store}}
+
+### Order detail with lines + approval trail
+GET {{v1}}/orders/{{orderId}}
+Authorization: Bearer {{store}}
+
+### List with filters (Dapper, one round trip for count + page)
+GET {{v1}}/orders?status=Posted&page=2&pageSize=10
+Authorization: Bearer {{store}}
+
+### Lookup by document number (Span<char> parser)
+GET {{v1}}/orders/by-number?orderNo=SO/2026-27/000042
+Authorization: Bearer {{store}}
+
+### ---------------------------------------------------------------- stock
+GET {{v1}}/stock?status=Reorder
+Authorization: Bearer {{store}}
+
+### Running stock (window function)
+GET {{v1}}/stock/items/1/ledger?warehouseId=1
+Authorization: Bearer {{store}}
+
+### Adjustment: too large a removal -> 422
+POST {{v1}}/stock/adjustments
+Authorization: Bearer {{store}}
+Content-Type: application/json
+
+{ "itemId": 2, "warehouseId": 1, "qty": -99999, "reason": "Damaged" }
+
+### ---------------------------------------------------------------- reports (versioned)
+GET {{v1}}/reports/monthly-sales
+Authorization: Bearer {{manager}}
+
+### v2: different response shape
+GET {{base}}/api/v2/reports/monthly-sales
+Authorization: Bearer {{manager}}
+
+### Four queries in parallel (Task.WhenAll); Cache-Control: max-age=30
+GET {{v1}}/reports/dashboard
+Authorization: Bearer {{manager}}
+
+### OUTER APPLY: customer C008 appears with no orders
+GET {{v1}}/reports/latest-orders?topN=2
+Authorization: Bearer {{manager}}
+
+### ---------------------------------------------------------------- lookups (minimal API, output-cached)
+GET {{v1}}/lookups/categories
+Authorization: Bearer {{store}}
+
+###
+GET {{v1}}/lookups/customers?search=om&sortBy=code&desc=true
+Authorization: Bearer {{store}}
+
+### ---------------------------------------------------------------- admin + diagnostics
+GET {{v1}}/admin/sessions
+Authorization: Bearer {{admin}}
+
+### DI lifetimes demo: call twice and compare the ids (Development only)
+GET {{base}}/api/diagnostics/lifetimes
+
+###
+GET {{base}}/api/diagnostics/info
+
+###
+GET {{base}}/health/ready
+
+### Content negotiation: XML isn't supported -> 406 Not Acceptable
+GET {{v1}}/items
+Authorization: Bearer {{store}}
+Accept: application/xml

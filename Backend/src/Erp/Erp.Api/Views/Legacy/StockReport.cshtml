@@ -1,0 +1,41 @@
+@{
+    Layout = "_LegacyLayout";
+    ViewData["Title"] = "Stock report";
+}
+@* The anti-forgery token, rendered once; legacy-stock.js reads it and sends it
+   as the RequestVerificationToken header on every AJAX POST. *@
+@Html.AntiForgeryToken()
+
+<section class="card">
+    <div class="toolbar">
+        <h1>Stock report</h1>
+        <div class="filters">
+            <label for="search" class="sr-only">Search items</label>
+            <input id="search" type="search" placeholder="Search code or name..." />
+            <label for="warehouse" class="sr-only">Warehouse</label>
+            <select id="warehouse">
+                <option value="">All warehouses</option>
+                <option value="1">MUM</option>
+                <option value="2">PUN</option>
+            </select>
+            <label class="check"><input id="onlyReorder" type="checkbox" /> Only items to reorder</label>
+        </div>
+    </div>
+
+    <p id="status" class="muted" aria-live="polite">Loading...</p>
+
+    <div class="table-wrap">
+        <table id="stockTable">
+            <thead>
+                <tr><th>Code</th><th>Item</th><th>Warehouse</th><th class="num">Qty</th><th class="num">Reorder at</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</section>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+@section Scripts {
+    <script src="~/legacy/legacy-stock.js" asp-append-version="true"></script>
+}
