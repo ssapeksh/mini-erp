@@ -488,8 +488,8 @@ learning/
 .env
 # Angular
 node_modules/
-client/**/dist/
-client/**/.angular/
+Frontend/**/dist/
+Frontend/**/.angular/
 # Test coverage output
 coverage/
 TestResults/

@@ -24,16 +24,20 @@ Erp.Api ──Outbox → RabbitMQ: OrderDespatched ──► Ledger ──► Le
 ## Repository layout
 
 ```
-database/          SQL scripts (schema, procs, views) + practice/ queries and a tuning lab
-src/Shared/        MiniErp.Contracts: message contracts and API response types
-src/Gateway/       YARP API gateway
-src/Erp/           Erp.Core (domain + services), Erp.Infrastructure (EF Core, Dapper), Erp.Api
-src/Ledger/        Ledger.Service (NHibernate)
-src/Pricing/       Pricing.WcfService (CoreWCF)
-src/Katas/         C# coding problems
-client/erp-web/    Angular app
-tests/             unit, integration and kata tests
-docs/              architecture, agile backlog, WCF and NHibernate notes
+Backend/                    all .NET + SQL code
+  MiniErp.slnx              the .NET solution
+  database/                 SQL scripts (schema, procs, views) + practice/ queries and a tuning lab
+  src/Shared/               MiniErp.Contracts: message contracts and API response types
+  src/Gateway/              YARP API gateway
+  src/Erp/                  Erp.Core (domain + services), Erp.Infrastructure (EF Core, Dapper), Erp.Api
+  src/Ledger/               Ledger.Service (NHibernate)
+  src/Pricing/              Pricing.WcfService (CoreWCF)
+  src/Katas/                C# coding problems
+  tests/                    unit, integration and kata tests
+Frontend/                   all client code
+  erp-web/                  Angular app
+docs/                       architecture, agile backlog, WCF and NHibernate notes
+docker-compose.yml          local infrastructure for both sides
 ```
 
 ## Getting started
@@ -47,8 +51,8 @@ cp .env.example .env
 # 2. Infrastructure: SQL Server (localhost,14333) and RabbitMQ (UI on http://localhost:15672)
 docker compose up -d sqlserver rabbitmq
 
-# 3. Build everything
-dotnet build MiniErp.slnx
+# 3. Build the backend
+dotnet build Backend/MiniErp.slnx
 ```
 
 Each phase adds its own run instructions below.
