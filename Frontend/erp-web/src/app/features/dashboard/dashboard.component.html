@@ -1,0 +1,69 @@
+<div class="page-header">
+  <h1>Welcome, {{ auth.user()?.fullName }}</h1>
+  <span class="muted">{{ auth.user()?.role }}</span>
+</div>
+
+@if (!canSeeReports) {
+  <app-card title="Quick links">
+    <div class="quick-links">
+      <a class="btn" routerLink="/items">Items</a>
+      <a class="btn" routerLink="/orders">Orders</a>
+      <a class="btn" routerLink="/stock">Stock</a>
+    </div>
+    <p class="muted small">Your role doesn't include Reports.View, so the dashboard numbers are hidden.</p>
+  </app-card>
+} @else if (data(); as d) {
+  <div class="kpis">
+    <div class="kpi"><span class="kpi-label">Orders</span><span class="kpi-value">{{ totalOrders() | number }}</span></div>
+    <div class="kpi"><span class="kpi-label">Items to reorder</span><span class="kpi-value warn">{{ d.lowStockCount }}</span></div>
+    <div class="kpi"><span class="kpi-label">Last month sales</span>
+      <span class="kpi-value">{{ (d.recentMonths.at(-1)?.total ?? 0) | currency: 'INR' : 'symbol' : '1.0-0' }}</span></div>
+    <div class="kpi"><span class="kpi-label">API time (4 parallel queries)</span><span class="kpi-value">{{ d.elapsedMs }} ms</span></div>
+  </div>
+
+  <div class="grid-2">
+    <app-card title="Orders by status">
+      <ul class="status-list">
+        @for (s of d.ordersByStatus; track s.status) {
+          <li><app-status-badge [status]="s.status" /> <strong>{{ s.count }}</strong></li>
+        }
+      </ul>
+    </app-card>
+
+    <!-- Loaded only when scrolled into view -->
+    @defer (on viewport) {
+      <app-card title="Sales, last 6 months">
+        <div class="bars">
+          @for (m of bars(); track m.month) {
+            <div class="bar-col" [title]="(m.total | currency: 'INR') ?? ''">
+              <div class="bar" [style.height.%]="m.height"></div>
+              <span class="bar-label">{{ m.month }}</span>
+            </div>
+          }
+        </div>
+      </app-card>
+    } @placeholder (minimum 200ms) {
+      <app-card title="Sales, last 6 months"><div class="skeleton"></div></app-card>
+    } @loading {
+      <app-card title="Sales, last 6 months"><p class="muted">Loading chart…</p></app-card>
+    }
+  </div>
+
+  @defer (on viewport) {
+    <app-card title="Top items by sales">
+      <table class="table">
+        <thead><tr><th>Code</th><th>Item</th><th class="num">Qty</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          @for (i of d.topItems; track i.code) {
+            <tr><td>{{ i.code }}</td><td>{{ i.name }}</td><td class="num">{{ i.qty | number: '1.0-0' }}</td>
+              <td class="num">{{ i.amount | currency: 'INR' }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </app-card>
+  } @placeholder {
+    <div class="skeleton tall"></div>
+  }
+} @else {
+  <div class="skeleton tall"></div>
+}
