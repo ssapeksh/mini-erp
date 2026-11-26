@@ -42,7 +42,7 @@ docker-compose.yml          local infrastructure for both sides
 
 ## Getting started
 
-Prerequisites: .NET SDK 10, Node 24 + Angular CLI 21, Docker Desktop.
+Prerequisites: .NET SDK 10, Node 24 (npm 11), Docker Desktop. The Angular CLI comes from the project's own dependencies (`npx ng`).
 
 ```bash
 # 1. Secrets: copy the example and set your own values
@@ -68,6 +68,16 @@ Try it:
 - **Legacy MVC + jQuery page**: http://localhost:5101/legacy (cookie login + anti-forgery tokens).
 - **JavaScript playground**: http://localhost:5101/playground/js-playground.html.
 - **Health**: http://localhost:5101/health/ready.
+
+```bash
+# 6. Run the Angular client -> http://localhost:4200
+cd Frontend/erp-web
+npm install
+npm start
+```
+
+Sign in as `store1`, `approver1`, `manager1`, `viewer1` or `admin` (password `Demo@123`): each role sees different menus and buttons.
+See [Frontend/erp-web/README.md](Frontend/erp-web/README.md) for the structure and a step-by-step approval flow to try.
 
 Demo logins (password `Demo@123`): `admin`, `manager1`, `approver1`, `store1`, `viewer1`.
 See [Backend/database/README.md](Backend/database/README.md) for the schema, procedures and SQL practice scripts.
