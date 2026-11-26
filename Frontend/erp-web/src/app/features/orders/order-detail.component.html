@@ -1,0 +1,83 @@
+@if (order(); as o) {
+  <div class="page-header">
+    <div>
+      <h1 class="mono">{{ o.orderNo }}</h1>
+      <span class="muted">{{ o.customerName }} · {{ o.warehouseCode }} · {{ o.orderDate | date: 'dd-MMM-yyyy' }}</span>
+    </div>
+    <div class="actions">
+      <app-status-badge [status]="o.status" />
+      <a class="btn" routerLink="/orders">Back</a>
+    </div>
+  </div>
+
+  @if (can().submit || can().approve || can().despatch || can().delete) {
+    <app-card title="Actions">
+      <div class="workflow">
+        @if (can().approve || can().submit) {
+          <input class="grow" [formControl]="comments" placeholder="Comments (required to reject)" aria-label="Comments" />
+        }
+        @if (can().submit) {
+          <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="act('submit')">
+            {{ busy() === 'submit' ? 'Submitting…' : 'Submit for approval' }}</button>
+        }
+        @if (can().approve) {
+          <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="act('approve')">
+            {{ busy() === 'approve' ? 'Approving…' : 'Approve level ' + o.pendingLevel }}</button>
+          <button type="button" class="btn danger" [disabled]="busy()" (click)="act('reject')">Reject</button>
+        }
+        @if (can().despatch) {
+          <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="act('despatch')">
+            {{ busy() === 'despatch' ? 'Despatching…' : 'Despatch' }}</button>
+        }
+        @if (can().delete) {
+          <button type="button" class="btn-link danger" [disabled]="busy()" (click)="act('delete')">Delete draft</button>
+        }
+      </div>
+    </app-card>
+  }
+
+  <div class="grid-2">
+    <app-card title="Lines">
+      <table class="table">
+        <thead><tr><th>#</th><th>Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Disc %</th><th class="num">GST %</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          @for (l of o.lines; track l.lineNumber) {
+            <tr>
+              <td>{{ l.lineNumber }}</td>
+              <td><span class="mono">{{ l.itemCode }}</span> {{ l.itemName }}</td>
+              <td class="num">{{ l.qty | number: '1.0-3' }}</td>
+              <td class="num">{{ l.unitPrice | currency: 'INR' }}</td>
+              <td class="num">{{ l.discountPct }}</td>
+              <td class="num">{{ l.taxPercent }}</td>
+              <td class="num">{{ l.lineTotal | currency: 'INR' }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr><td colspan="6" class="num">Subtotal</td><td class="num">{{ o.subTotal | currency: 'INR' }}</td></tr>
+          <tr><td colspan="6" class="num">GST</td><td class="num">{{ o.taxAmount | currency: 'INR' }}</td></tr>
+          <tr class="total"><td colspan="6" class="num">Total</td><td class="num">{{ o.totalAmount | currency: 'INR' }}</td></tr>
+        </tfoot>
+      </table>
+      <!-- Remarks are user text: shown with {{ }} so Angular escapes them. Binding user text to
+           [innerHTML] would be sanitised by Angular, but bypassSecurityTrustHtml would open an XSS hole. -->
+      @if (o.remarks) { <p class="muted">Remarks: {{ o.remarks }}</p> }
+    </app-card>
+
+    <app-card title="Approval trail">
+      <ol class="timeline">
+        @for (a of o.approvals; track $index) {
+          <li [class]="'tl-' + a.action.toLowerCase()">
+            <strong>{{ a.action }}</strong>{{ a.level > 0 ? ' (level ' + a.level + ')' : '' }} by {{ a.actionBy }}
+            <span class="muted small">{{ a.actionOn | date: 'dd-MMM HH:mm' }}</span>
+            @if (a.comments) { <div class="small">“{{ a.comments }}”</div> }
+          </li>
+        } @empty {
+          <li class="muted">Not submitted yet.</li>
+        }
+      </ol>
+    </app-card>
+  </div>
+} @else {
+  <div class="skeleton tall"></div>
+}
