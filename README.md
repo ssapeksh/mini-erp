@@ -54,9 +54,20 @@ docker compose up -d sqlserver rabbitmq
 # 3. Create ErpDb + PracticeDb and load demo data (PowerShell)
 ./Backend/database/run-all.ps1
 
-# 4. Build the backend
+# 4. Put the connection string + JWT key into dotnet user-secrets (read from .env)
+./Backend/scripts/set-dev-secrets.ps1
+
+# 5. Build and run the API -> http://localhost:5101/swagger
 dotnet build Backend/MiniErp.slnx
+dotnet run --project Backend/src/Erp/Erp.Api --launch-profile http
 ```
+
+Try it:
+- **Swagger UI**: http://localhost:5101/swagger. Log in with `POST /api/v1/auth/login`, click *Authorize*, paste the `accessToken`.
+- **Request collection**: [Backend/src/Erp/Erp.Api/Erp.Api.http](Backend/src/Erp/Erp.Api/Erp.Api.http) walks through every endpoint, including the approval workflow.
+- **Legacy MVC + jQuery page**: http://localhost:5101/legacy (cookie login + anti-forgery tokens).
+- **JavaScript playground**: http://localhost:5101/playground/js-playground.html.
+- **Health**: http://localhost:5101/health/ready.
 
 Demo logins (password `Demo@123`): `admin`, `manager1`, `approver1`, `store1`, `viewer1`.
 See [Backend/database/README.md](Backend/database/README.md) for the schema, procedures and SQL practice scripts.
