@@ -4,6 +4,13 @@
     <ProjectReference Include="..\..\Shared\MiniErp.Contracts\MiniErp.Contracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.2.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.15" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.15" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
