@@ -115,7 +115,7 @@ BEGIN
     SELECT i.Id, i.Code, i.Name, i.CategoryId, c.Name AS CategoryName, i.Unit,
            i.UnitPrice, i.TaxPercent, i.ReorderLevel, i.IsActive,
            ISNULL(s.TotalQty, 0) AS StockQty,
-           CASE WHEN ISNULL(s.TotalQty, 0) <= i.ReorderLevel THEN 1 ELSE 0 END AS IsBelowReorder,
+           CAST(CASE WHEN ISNULL(s.TotalQty, 0) <= i.ReorderLevel THEN 1 ELSE 0 END AS BIT) AS IsBelowReorder,   -- BIT maps to C# bool
            i.RowVersion
     FROM dbo.Items i
     JOIN dbo.ItemCategories c ON c.Id = i.CategoryId

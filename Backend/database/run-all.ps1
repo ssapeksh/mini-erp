@@ -32,10 +32,17 @@ if (-not (Test-Path $envFile)) { throw "Missing $envFile. Copy .env.example to .
 $pwLine = Get-Content $envFile | Where-Object { $_ -match '^SQL_SA_PASSWORD=' } | Select-Object -First 1
 if (-not $pwLine) { throw 'SQL_SA_PASSWORD not found in .env' }
 $env:SQLCMDPASSWORD = $pwLine.Substring('SQL_SA_PASSWORD='.Length)
+$appLine = Get-Content $envFile | Where-Object { $_ -match '^SQL_APP_PASSWORD=' } | Select-Object -First 1
+$appPassword = if ($appLine) { $appLine.Substring('SQL_APP_PASSWORD='.Length) } else { $null }
 
 function Invoke-SqlFile([string]$path) {
     Write-Host "==> $($path.Replace($dbDir, '').TrimStart('\', '/'))" -ForegroundColor Cyan
-    & sqlcmd -S $Server -U sa -C -b -I -f 65001 -i $path
+    $vars = @()
+    if ((Get-Content $path -Raw) -match '\$\(AppPassword\)') {
+        if (-not $appPassword) { throw 'SQL_APP_PASSWORD not found in .env (needed by 05_app_login.sql)' }
+        $vars = @('-v', "AppPassword=$appPassword")
+    }
+    & sqlcmd -S $Server -U sa -C -b -I -f 65001 @vars -i $path
     if ($LASTEXITCODE -ne 0) { throw "Script failed: $path" }
 }
 
