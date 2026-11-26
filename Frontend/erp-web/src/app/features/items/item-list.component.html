@@ -1,0 +1,86 @@
+<div class="page-header">
+  <h1>Items</h1>
+  <div class="actions">
+    <button type="button" class="btn" (click)="exportCsv()">Export CSV</button>
+    <a *appHasPermission="P.ItemsCreate" class="btn btn-primary" routerLink="new">+ New item</a>
+  </div>
+</div>
+
+<app-card>
+  <div class="filters">
+    <!-- [formControl] binds a standalone FormControl (reactive forms without a FormGroup) -->
+    <input type="search" class="grow" placeholder="Search code or name…" [formControl]="search" aria-label="Search items" />
+    <select [formControl]="category" aria-label="Category">
+      <option [ngValue]="null">All categories</option>
+      <!-- async pipe: subscribes to the Observable and unsubscribes on destroy -->
+      @for (c of categories$ | async; track c.id) {
+        <option [ngValue]="c.id">{{ c.name }}</option>
+      }
+    </select>
+  </div>
+
+  @if (result(); as r) {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th><button type="button" class="th-sort" (click)="toggleSort('Code')">Code {{ sortIcon('Code') }}</button></th>
+            <th><button type="button" class="th-sort" (click)="toggleSort('Name')">Name {{ sortIcon('Name') }}</button></th>
+            <th>Category</th>
+            <th class="num"><button type="button" class="th-sort" (click)="toggleSort('Price')">Price {{ sortIcon('Price') }}</button></th>
+            <th class="num">GST</th>
+            <th class="num"><button type="button" class="th-sort" (click)="toggleSort('Stock')">Stock {{ sortIcon('Stock') }}</button></th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- @for requires track: Angular reuses DOM rows by id instead of rebuilding the table -->
+          @for (item of r.items; track item.id) {
+            <tr [class.inactive]="!item.isActive">
+              <td class="mono">{{ item.code }}</td>
+              <!-- {{ }} interpolation is HTML-ESCAPED: a name like <script> renders as text (XSS-safe) -->
+              <td>{{ item.name }}</td>
+              <td>{{ item.categoryName }}</td>
+              <td class="num">{{ item.unitPrice | currency: 'INR' }}</td>
+              <td class="num">{{ item.taxPercent }}%</td>
+              <td class="num">{{ item.stockQty | number: '1.0-2' }} {{ item.unit }}</td>
+              <td><app-status-badge [status]="item.stockQty | stockStatus: item.reorderLevel" /></td>
+              <td class="row-actions">
+                <button type="button" class="btn-link" (click)="showHistory(item)">History</button>
+                <a *appHasPermission="P.ItemsEdit" class="btn-link" [routerLink]="[item.id, 'edit']">Edit</a>
+                <button *appHasPermission="P.ItemsDelete" type="button" class="btn-link danger" (click)="remove(item)">Delete</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="muted center">No items match.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pager [page]="r.page" [totalPages]="r.totalPages" [totalCount]="r.totalCount" (pageChange)="page.set($event)" />
+  } @else {
+    <div class="skeleton tall"></div>
+  }
+</app-card>
+
+@if (history(); as h) {
+  <app-card [title]="'Price history: ' + h.item.code">
+    <div card-actions #cardActions><button type="button" class="btn btn-small" (click)="history.set(null)">Close</button></div>
+    <p class="muted small">From the SQL Server temporal table (Items + ItemsHistory).</p>
+    <table class="table">
+      <thead><tr><th>Valid from</th><th>Valid to</th><th>Name</th><th class="num">Price</th><th>State</th></tr></thead>
+      <tbody>
+        @for (v of h.rows; track v.validFrom) {
+          <tr>
+            <td>{{ v.validFrom | date: 'dd-MMM-yyyy HH:mm' }}</td>
+            <td>{{ v.validTo.startsWith('9999') ? 'current' : (v.validTo | date: 'dd-MMM-yyyy HH:mm') }}</td>
+            <td>{{ v.name }}</td>
+            <td class="num">{{ v.unitPrice | currency: 'INR' }}</td>
+            <td>{{ v.isDeleted ? 'deleted' : v.isActive ? 'active' : 'inactive' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </app-card>
+}

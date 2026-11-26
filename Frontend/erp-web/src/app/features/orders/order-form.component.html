@@ -1,0 +1,67 @@
+<div class="page-header">
+  <h1>New order</h1>
+  <a class="btn" routerLink="/orders">Back to orders</a>
+</div>
+
+<form [formGroup]="form" novalidate>
+  <app-card title="Header">
+    <div class="form-grid">
+      <div class="field">
+        <label for="customer">Customer</label>
+        <select id="customer" formControlName="customerId">
+          <option [ngValue]="0" disabled>Choose a customer…</option>
+          @for (c of customers(); track c.id) { <option [ngValue]="c.id">{{ c.code }} · {{ c.name }}</option> }
+        </select>
+        @if (form.controls.customerId.touched && form.controls.customerId.invalid) {
+          <small class="field-error">Choose a customer.</small>
+        }
+      </div>
+      <div class="field">
+        <label for="warehouse">Warehouse</label>
+        <select id="warehouse" formControlName="warehouseId">
+          @for (w of warehouses$ | async; track w.id) { <option [ngValue]="w.id">{{ w.code }} · {{ w.name }}</option> }
+        </select>
+      </div>
+      <div class="field span-2">
+        <label for="remarks">Remarks</label>
+        <input id="remarks" formControlName="remarks" placeholder="Optional" />
+      </div>
+    </div>
+  </app-card>
+
+  <app-card title="Lines">
+    <div card-actions #cardActions>
+      <button type="button" class="btn btn-small" (click)="addLine()">+ Add line</button>
+    </div>
+
+    <!-- formArrayName + [formGroupName]="i": one FormGroup per row -->
+    <div formArrayName="lines" class="lines">
+      @for (line of lines.controls; track line; let i = $index) {
+        <div class="line" [formGroupName]="i">
+          <span class="line-no">{{ i + 1 }}</span>
+          <select formControlName="itemId" [attr.aria-label]="'Item for line ' + (i + 1)">
+            <option [ngValue]="0" disabled>Choose an item…</option>
+            @for (it of items(); track it.id) { <option [ngValue]="it.id">{{ it.code }} · {{ it.name }}</option> }
+          </select>
+          <input type="number" formControlName="qty" min="0" step="1" [attr.aria-label]="'Quantity for line ' + (i + 1)" />
+          <span class="muted small">{{ itemLabel(line.controls.itemId.value) }}</span>
+          <button type="button" class="btn-link danger" [disabled]="lines.length === 1" (click)="removeLine(i)">Remove</button>
+        </div>
+      }
+    </div>
+    @if (lines.errors?.['duplicateItems']) {
+      <p class="field-error">The same item is on two lines: combine them into one.</p>
+    }
+    @if (lines.touched && lines.invalid && !lines.errors?.['duplicateItems']) {
+      <p class="field-error">Every line needs an item and a quantity above zero.</p>
+    }
+
+    <p class="estimate">Estimated value (before discounts and GST): <strong>{{ estimate() | currency: 'INR' }}</strong></p>
+    <p class="muted small">Prices, bulk/festival discounts and tax are calculated by the server when you save.</p>
+  </app-card>
+
+  <div class="form-actions">
+    <button type="button" class="btn" [disabled]="saving()" (click)="save(false)">Save draft</button>
+    <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save(true)">Save &amp; submit for approval</button>
+  </div>
+</form>

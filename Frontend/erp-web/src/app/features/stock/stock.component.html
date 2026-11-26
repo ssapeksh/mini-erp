@@ -1,0 +1,69 @@
+<div class="page-header">
+  <h1>Stock</h1>
+  <div class="actions">
+    <span class="muted small">Auto-refreshes every minute · last {{ lastRefresh().toLocaleTimeString() }}</span>
+    <button type="button" class="btn" (click)="reload()">Refresh</button>
+  </div>
+</div>
+
+<div class="grid-main-side">
+  <app-card>
+    <div class="filters">
+      <select aria-label="Warehouse" (change)="warehouse$.next($any($event.target).value ? +$any($event.target).value : null)">
+        <option value="">All warehouses</option>
+        @for (w of warehouses$ | async; track w.id) { <option [value]="w.id">{{ w.code }}</option> }
+      </select>
+      <select aria-label="Stock status" (change)="status$.next($any($event.target).value)">
+        <option value="">All statuses</option>
+        <option value="Reorder">Reorder</option>
+        <option value="Low">Low</option>
+        <option value="OK">OK</option>
+      </select>
+      <span class="muted small grow right">Stock value: <strong>{{ (totalValue$ | async) ?? 0 | currency: 'INR' }}</strong></span>
+    </div>
+
+    @if (rows$ | async; as rows) {
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Code</th><th>Item</th><th>WH</th><th class="num">Qty</th><th class="num">Reorder at</th><th>Status</th><th class="num">Value</th><th></th></tr></thead>
+          <tbody>
+            @for (r of rows; track r.itemId + '-' + r.warehouseId) {
+              <tr>
+                <td class="mono">{{ r.code }}</td>
+                <td>{{ r.name }}</td>
+                <td>{{ r.warehouse }}</td>
+                <td class="num">{{ r.quantity | number: '1.0-2' }} {{ r.unit }}</td>
+                <td class="num">{{ r.reorderLevel | number: '1.0-0' }}</td>
+                <td><app-status-badge [status]="r.stockStatus" /></td>
+                <td class="num">{{ r.stockValue | currency: 'INR' : 'symbol' : '1.0-0' }}</td>
+                <td><button *appHasPermission="P.StockAdjust" type="button" class="btn-link" (click)="pick(r)">Adjust</button></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="8" class="muted center">No rows.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="skeleton tall"></div>
+    }
+  </app-card>
+
+  <app-card *appHasPermission="P.StockAdjust" title="Stock adjustment">
+    <form [formGroup]="adjustForm" (ngSubmit)="adjust()" class="stack" novalidate>
+      <label for="adjItem">Item id</label>
+      <input id="adjItem" type="number" formControlName="itemId" />
+      <label for="adjWh">Warehouse id</label>
+      <input id="adjWh" type="number" formControlName="warehouseId" />
+      <label for="adjQty">Quantity (+ add, − remove)</label>
+      <input id="adjQty" type="number" formControlName="qty" />
+      <label for="adjReason">Reason</label>
+      <input id="adjReason" formControlName="reason" placeholder="Cycle count, damage…" />
+      @if (adjustForm.touched && adjustForm.invalid) {
+        <small class="field-error">Pick a row, enter a non-zero quantity and a reason.</small>
+      }
+      <button type="submit" class="btn btn-primary">Post adjustment</button>
+      <p class="muted small">The API saves the balance and the ledger row in one EF Core transaction; removing more than is in stock returns 422.</p>
+    </form>
+  </app-card>
+</div>
