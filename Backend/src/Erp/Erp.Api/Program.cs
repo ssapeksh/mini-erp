@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using Erp.Api.BackgroundServices;
+using Erp.Api.Common;
 using Erp.Api.Diagnostics;
 using Erp.Api.Endpoints;
 using Erp.Api.ErrorHandling;
@@ -45,6 +46,7 @@ builder.Services
         options.Filters.Add<AuditActionFilter>();
         options.ReturnHttpNotAcceptable = true;          // CONTENT NEGOTIATION: Accept: application/xml -> 406
     })
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new UtcDateTimeJsonConverter()))   // controllers
     .ConfigureApiBehaviorOptions(options =>
     {
         // [ApiController] automatic 400 -> our ApiResponse shape instead of ProblemDetails
@@ -56,6 +58,9 @@ builder.Services
             return new BadRequestObjectResult(ApiResponse.Fail("Validation failed.", errors, context.HttpContext.TraceIdentifier));
         };
     });
+
+// Minimal APIs use their own JSON options: same UTC rule there
+builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new UtcDateTimeJsonConverter()));
 
 // API VERSIONING: /api/v1/..., /api/v2/... (or the X-Api-Version header)
 builder.Services.AddApiVersioning(options =>
