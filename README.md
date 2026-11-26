@@ -51,9 +51,15 @@ cp .env.example .env
 # 2. Infrastructure: SQL Server (localhost,14333) and RabbitMQ (UI on http://localhost:15672)
 docker compose up -d sqlserver rabbitmq
 
-# 3. Build the backend
+# 3. Create ErpDb + PracticeDb and load demo data (PowerShell)
+./Backend/database/run-all.ps1
+
+# 4. Build the backend
 dotnet build Backend/MiniErp.slnx
 ```
+
+Demo logins (password `Demo@123`): `admin`, `manager1`, `approver1`, `store1`, `viewer1`.
+See [Backend/database/README.md](Backend/database/README.md) for the schema, procedures and SQL practice scripts.
 
 Each phase adds its own run instructions below.
 
