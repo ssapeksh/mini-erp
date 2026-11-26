@@ -1,0 +1,22 @@
+@model LegacyLoginModel
+@{
+    Layout = "_LegacyLayout";
+    ViewData["Title"] = "Sign in";
+}
+<section class="card narrow">
+    <h1>Sign in</h1>
+    <p class="muted">Demo users: <code>store1</code>, <code>viewer1</code>, <code>admin</code>; password <code>Demo@123</code></p>
+
+    <form asp-action="Login" method="post" novalidate>
+        <div asp-validation-summary="ModelOnly" class="alert" role="alert"></div>
+        <input type="hidden" asp-for="ReturnUrl" />
+
+        <label asp-for="UserName">User name</label>
+        <input asp-for="UserName" autocomplete="username" autofocus />
+
+        <label asp-for="Password">Password</label>
+        <input asp-for="Password" type="password" autocomplete="current-password" />
+
+        <button type="submit" class="btn btn-primary">Sign in</button>
+    </form>
+</section>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>JS Playground · MiniErp</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root { --bg: #f6f7f9; --surface: #fff; --text: #1f2937; --muted: #6b7280; --accent: #2563eb; --border: #e5e7eb; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  header { padding: 1rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+  h1 { margin: 0; font-size: 1.2rem; }
+  header p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.9rem; }
+  /* Grid: cards flow into as many columns as fit */
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 1rem; padding: 1rem; }
+  section { background: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  h2 { margin: 0; font-size: 1rem; }
+  .q { color: var(--muted); font-size: 0.85rem; margin: 0; }
+  button { align-self: flex-start; padding: 0.35rem 0.8rem; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 0.4rem; cursor: pointer; font: inherit; }
+  button:hover { background: var(--accent); color: #fff; }
+  pre { margin: 0; background: #0f172a; color: #e2e8f0; padding: 0.6rem; border-radius: 0.4rem; min-height: 3rem; white-space: pre-wrap; font-size: 0.8rem; }
+  #bubble-outer { padding: 0.75rem; border: 2px dashed var(--muted); }
+  #bubble-inner { padding: 0.5rem; background: #e0e7ff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>JavaScript interview playground</h1>
+  <p>Click "Run" on a card. Each card is one interview question; the code is in this file's &lt;script&gt;.</p>
+</header>
+<main id="cards"></main>
+
+<script>
+'use strict';
+
+/* Each demo: { id, title, question, run(log) }. run() may be async. */
+const demos = [
+  {
+    title: 'var vs let vs const, hoisting, TDZ',
+    question: 'What is printed, and why does the let line throw?',
+    run(log) {
+      log('typeof hoistedFn:', typeof hoistedFn);          // function declarations are hoisted whole
+      log('hoistedVar before assignment:', hoistedVar);    // var is hoisted and initialised to undefined
+      try { log(notYet); } catch (e) { log('let before declaration ->', e.name, '(temporal dead zone)'); }
+      var hoistedVar = 1;
+      let notYet = 2;
+      function hoistedFn() {}
+      const obj = { a: 1 };
+      obj.a = 2;                                            // allowed: const blocks REASSIGNMENT, not mutation
+      log('const object mutated:', JSON.stringify(obj));
+      try { eval('const c = 1; c = 2;'); } catch (e) { log('reassigning const ->', e.name); }
+      if (true) { var fnScoped = 'var leaks out of blocks'; let blockScoped = 'let stays inside'; }
+      log(fnScoped, '| typeof blockScoped:', typeof blockScoped);
+    }
+  },
+  {
+    title: '== vs ===, truthy / falsy, typeof quirks',
+    question: 'Which of these are true?',
+    run(log) {
+      log("0 == ''", 0 == '', "| 0 === ''", 0 === '');      // == converts types first
+      log("null == undefined", null == undefined, "| null === undefined", null === undefined);
+      log("'1' == 1", '1' == 1, "| [] == false", [] == false);
+      const values = [false, 0, '', null, undefined, NaN, '0', [], {}];
+      log('falsy:', values.filter(v => !v).map(String).join(', '));
+      log('truthy:', values.filter(v => !!v).map(v => JSON.stringify(v)).join(', '));
+      log('typeof null =', typeof null, '(a historic bug) | typeof [] =', typeof [], '| Array.isArray([]) =', Array.isArray([]));
+      log('NaN === NaN', NaN === NaN, '| Number.isNaN(NaN)', Number.isNaN(NaN));
+    }
+  },
+  {
+    title: 'Closures and the classic loop bug',
+    question: 'for (var i...) setTimeout(() => log(i)) prints?',
+    run(log) {
+      for (var i = 0; i < 3; i++) setTimeout(() => log('var i =', i));    // 3 3 3: ONE shared i
+      for (let j = 0; j < 3; j++) setTimeout(() => log('let j =', j));    // 0 1 2: a new j per iteration
+      function makeCounter() { let count = 0; return () => ++count; }     // closure keeps 'count' alive
+      const next = makeCounter();
+      next(); next();
+      log('counter after 3 calls:', next(), '(count is private: encapsulation without a class)');
+    }
+  },
+  {
+    title: 'Event loop: sync, microtasks, macrotasks',
+    question: "console.log A, setTimeout B, Promise C, log D: what order?",
+    run(log) {
+      log('A (sync)');
+      setTimeout(() => log('B (macrotask: setTimeout)'), 0);
+      Promise.resolve().then(() => log('C (microtask: promise)'));
+      queueMicrotask(() => log('C2 (microtask: queueMicrotask)'));
+      log('D (sync)');
+      // Output: A D C C2 B - the call stack empties, then ALL microtasks, then the next macrotask
+    }
+  },
+  {
+    title: 'this, arrow functions, call / apply / bind',
+    question: 'Why is this undefined when a method is passed as a callback?',
+    run(log) {
+      const user = {
+        name: 'Asha',
+        regular() { return this?.name; },
+        arrow: () => typeof this,                           // arrows take 'this' from where they are DEFINED
+        delayed() { return [1].map(() => this.name)[0]; }   // arrow inside a method: keeps the method's this
+      };
+      log('user.regular():', user.regular());
+      const detached = user.regular;
+      log('detached():', detached(), '(this is lost: strict mode -> undefined)');
+      log('arrow at object level, typeof this:', user.arrow());
+      log('arrow inside method:', user.delayed());
+      function greet(greeting, mark) { return `${greeting}, ${this.name}${mark}`; }
+      log('call :', greet.call({ name: 'Ravi' }, 'Hi', '!'));        // args one by one, runs now
+      log('apply:', greet.apply({ name: 'Ravi' }, ['Hello', '?']));  // args as an array, runs now
+      const bound = greet.bind({ name: 'Ravi' }, 'Hey');               // returns a NEW function for later
+      log('bind :', bound('.'));
+    }
+  },
+  {
+    title: 'Promise.all vs allSettled vs race, async/await',
+    question: 'What happens when one of three promises fails?',
+    async run(log) {
+      const wait = (ms, value, fail) => new Promise((res, rej) => setTimeout(() => fail ? rej(new Error(value)) : res(value), ms));
+      try {
+        await Promise.all([wait(50, 'orders'), wait(20, 'stock failed', true), wait(30, 'ledger')]);
+      } catch (e) { log('all     -> rejects on the FIRST failure:', e.message); }
+      const settled = await Promise.allSettled([wait(50, 'orders'), wait(20, 'stock failed', true)]);
+      log('allSettled ->', settled.map(s => s.status + ':' + (s.value ?? s.reason.message)).join(' | '));
+      log('race    ->', await Promise.race([wait(40, 'slow'), wait(10, 'fast')]));
+      log('any     ->', await Promise.any([wait(10, 'x', true), wait(30, 'first success')]));
+      // like Task.WhenAll in C#: start all three, then await them together
+      const t0 = performance.now();
+      const [a, b, c] = await Promise.all([wait(100, 1), wait(100, 2), wait(100, 3)]);
+      log(`parallel sum ${a + b + c} in ~${Math.round(performance.now() - t0)} ms (not 300)`);
+    }
+  },
+  {
+    title: 'Prototypes and classes',
+    question: 'How does inheritance work in JavaScript?',
+    run(log) {
+      function Animal(name) { this.name = name; }
+      Animal.prototype.speak = function () { return `${this.name} makes a sound`; };
+      const a = new Animal('Generic');
+      log('prototype method:', a.speak(), '| own property?', Object.hasOwn(a, 'speak'));
+      class Dog extends Animal {                         // class syntax: sugar over prototypes
+        speak() { return `${super.speak()} - woof`; }  // override + call the parent (like C# base.)
+      }
+      const d = new Dog('Bruno');
+      log('class override:', d.speak());
+      log('chain:', Object.getPrototypeOf(Object.getPrototypeOf(d)) === Animal.prototype);
+    }
+  },
+  {
+    title: 'Spread, rest, destructuring, map / filter / reduce',
+    question: 'Total value of in-stock items?',
+    run(log) {
+      const items = [{ code: 'ELE-001', qty: 10, price: 95 }, { code: 'PLM-003', qty: 0, price: 18 }, { code: 'HDW-002', qty: 4, price: 90 }];
+      const total = items.filter(i => i.qty > 0)
+                         .map(({ qty, price }) => qty * price)            // destructuring in parameters
+                         .reduce((sum, v) => sum + v, 0);
+      log('in-stock value:', total);
+      const [first, ...others] = items;                                 // rest
+      log('first:', first.code, '| others:', others.length);
+      const updated = { ...first, qty: first.qty + 5 };                // spread: shallow copy + change
+      log('original qty', first.qty, '| copy qty', updated.qty);
+      const sum = (...nums) => nums.reduce((a, b) => a + b, 0);        // rest parameters
+      log('sum(1,2,3,4):', sum(...[1, 2, 3, 4]));                      // spread an array into arguments
+    }
+  },
+  {
+    title: 'Shallow vs deep copy: structuredClone vs JSON',
+    question: 'Why did changing the copy change the original?',
+    run(log) {
+      const order = { no: 'SO/1', date: new Date('2026-11-26'), lines: [{ item: 'ELE-001', qty: 1 }] };
+      const shallow = { ...order };
+      shallow.lines[0].qty = 99;                                     // shared nested array!
+      log('after shallow copy edit, original qty =', order.lines[0].qty);
+      const deep = structuredClone(order);
+      deep.lines[0].qty = 1;
+      log('structuredClone: original qty still', order.lines[0].qty, '| date is Date?', deep.date instanceof Date);
+      const viaJson = JSON.parse(JSON.stringify(order));
+      log('JSON copy: date became', typeof viaJson.date, '(dates/functions/undefined are lost)');
+    }
+  },
+  {
+    title: 'Event bubbling and delegation',
+    question: 'Click the inner box: which handlers run, in what order?',
+    html: '<div id="bubble-outer">outer <div id="bubble-inner">inner (click me)</div></div>',
+    setup(log) {
+      document.getElementById('bubble-outer').addEventListener('click', e =>
+        log(`outer handler: target=${e.target.id}, currentTarget=${e.currentTarget.id}`));
+      document.getElementById('bubble-inner').addEventListener('click', () => log('inner handler (runs first, then the event BUBBLES up)'));
+    },
+    run(log) {
+      log('Click the inner box above. Delegation = put ONE listener on the parent and check e.target,');
+      log('which also works for children added later (see legacy-stock.js: $tbody.on("click", ".btn-reorder")).');
+    }
+  },
+  {
+    title: 'Debounce vs throttle',
+    question: '10 rapid events: how many calls each?',
+    async run(log) {
+      const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+      const throttle = (fn, ms) => { let last = 0; return (...a) => { const now = Date.now(); if (now - last >= ms) { last = now; fn(...a); } }; };
+      let d = 0, t = 0;
+      const dbc = debounce(() => d++, 50), thr = throttle(() => t++, 50);
+      for (let i = 0; i < 10; i++) { dbc(); thr(); await new Promise(r => setTimeout(r, 15)); }
+      await new Promise(r => setTimeout(r, 80));
+      log(`debounce ran ${d}x (after the burst stops: search boxes)`);
+      log(`throttle ran ${t}x (at most every 50ms: scroll/resize)`);
+    }
+  },
+  {
+    title: 'null vs undefined, ?? vs ||, optional chaining',
+    question: 'Why is a quantity of 0 replaced by 10?',
+    run(log) {
+      let declared; const cfg = { qty: 0, nested: null };
+      log('declared but unassigned:', declared, '| explicitly empty:', cfg.nested);
+      log('qty || 10 =', cfg.qty || 10, '(0 is falsy: a bug)');
+      log('qty ?? 10 =', cfg.qty ?? 10, '(only null/undefined fall back)');
+      log('cfg.nested?.deep?.value =', cfg.nested?.deep?.value, '(no TypeError)');
+    }
+  },
+  {
+    title: 'localStorage vs sessionStorage vs cookies',
+    question: 'Where should a JWT live in the browser?',
+    run(log) {
+      try {
+        localStorage.setItem('demo', 'survives restarts');
+        sessionStorage.setItem('demo', 'this tab only');
+        log('localStorage:', localStorage.getItem('demo'), '| sessionStorage:', sessionStorage.getItem('demo'));
+        localStorage.removeItem('demo'); sessionStorage.removeItem('demo');
+      } catch { log('storage blocked in this browser context'); }
+      log('Cookies are sent to the server on every request; HttpOnly cookies are invisible to JS.');
+      log('Any script on the page (including an XSS payload) can read localStorage, so the Angular app');
+      log('keeps the access token in memory and only the refresh token in storage.');
+    }
+  }
+];
+
+/* Render the cards (plain DOM API: createElement + textContent, never innerHTML with data) */
+const container = document.getElementById('cards');
+demos.forEach((demo, index) => {
+  const section = document.createElement('section');
+  const h2 = document.createElement('h2'); h2.textContent = `${index + 1}. ${demo.title}`;
+  const q = document.createElement('p'); q.className = 'q'; q.textContent = demo.question;
+  const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Run';
+  const out = document.createElement('pre');
+  section.append(h2, q);
+  if (demo.html) { const host = document.createElement('div'); host.innerHTML = demo.html; section.append(host); }  // static markup only
+  section.append(btn, out);
+  container.append(section);
+
+  const log = (...parts) => { out.textContent += parts.map(p => typeof p === 'string' ? p : String(p)).join(' ') + '\n'; };
+  if (demo.setup) demo.setup(log);
+  btn.addEventListener('click', async () => {
+    out.textContent = '';
+    try { await demo.run(log); } catch (e) { log('Error:', e.message); }
+  });
+});
+</script>
+</body>
+</html>

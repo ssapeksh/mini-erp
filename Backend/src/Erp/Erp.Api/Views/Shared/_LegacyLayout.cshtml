@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · MiniErp Legacy</title>
+    <link rel="stylesheet" href="~/legacy/legacy.css" asp-append-version="true" />
+</head>
+<body>
+    @* Semantic HTML: header / nav / main / footer give structure for screen readers and SEO *@
+    <header class="topbar">
+        <strong class="brand">MiniErp <span class="badge">legacy MVC + jQuery</span></strong>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <nav aria-label="Main">
+                <a asp-action="StockReport">Stock report</a>
+                <span class="who">Signed in as <b>@User.Identity.Name</b></span>
+                <form asp-action="Logout" method="post" class="inline">
+                    @* the form tag helper adds the hidden __RequestVerificationToken automatically *@
+                    <button type="submit" class="btn btn-link">Sign out</button>
+                </form>
+            </nav>
+        }
+    </header>
+    <main class="container">
+        @RenderBody()
+    </main>
+    <footer class="footer">Demo of a classic server-rendered page next to the Angular SPA.</footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
